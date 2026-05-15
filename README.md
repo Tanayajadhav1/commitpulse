@@ -241,6 +241,6 @@ _Built with obsession, shipped with precision._
 
 ⭐ **If CommitPulse made your profile look elite, drop a star.** ⭐
 
-### This project is an official participant in Nexus Spring of Code (NSoC) 2026.
+### This project is an official participant in GSSoC 2026.
 
 </div>
