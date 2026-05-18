@@ -41,6 +41,12 @@ export async function GET(request: Request) {
 
     const font = searchParams.get('font') || undefined;
 
+    // Clamp radius to prevent invalid SVG corner rendering from extreme query values.
+    const rawRadius = searchParams.get('radius');
+    const parsedRadius = rawRadius == null || rawRadius === '' ? Number.NaN : Number(rawRadius);
+    const normalizedRadius = Number.isFinite(parsedRadius) ? parsedRadius : 8;
+    const clampedRadius = Math.min(32, Math.max(0, normalizedRadius));
+
     // Auto-theme ignores custom hex overrides — the SVG uses CSS
     // custom properties with a prefers-color-scheme media query, so
     // fixed colors would conflict with the dual-palette switching.
@@ -51,7 +57,7 @@ export async function GET(request: Request) {
       accent: isAutoTheme
         ? selectedTheme.accent
         : searchParams.get('accent') || selectedTheme.accent,
-      radius: searchParams.get('radius') || '8',
+      radius: clampedRadius,
       speed,
       scale,
       font,
