@@ -13,9 +13,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     // ✅ Single source of truth: Zod
-    const parseResult = streakParamsSchema.safeParse(
-      Object.fromEntries(searchParams.entries())
-    );
+    const parseResult = streakParamsSchema.safeParse(Object.fromEntries(searchParams.entries()));
 
     if (!parseResult.success) {
       return NextResponse.json(
@@ -27,19 +25,8 @@ export async function GET(request: Request) {
       );
     }
 
-    const {
-      user,
-      theme,
-      bg,
-      text,
-      accent,
-      scale,
-      speed,
-      radius,
-      font,
-      year,
-      refresh,
-    } = parseResult.data;
+    const { user, theme, bg, text, accent, scale, speed, radius, font, year, refresh } =
+      parseResult.data;
 
     const from = year ? `${year}-01-01T00:00:00Z` : undefined;
     const to = year ? `${year}-12-31T23:59:59Z` : undefined;
@@ -61,10 +48,8 @@ export async function GET(request: Request) {
     })();
 
     // ⚠️ Safety layer for rendering only (not parsing logic)
-const parsedRadius = Number(radius);
-const safeRadius = Number.isFinite(parsedRadius)
-  ? Math.min(32, Math.max(0, parsedRadius))
-  : 8;
+    const parsedRadius = Number(radius);
+    const safeRadius = Number.isFinite(parsedRadius) ? Math.min(32, Math.max(0, parsedRadius)) : 8;
     const params: BadgeParams = {
       user,
 
@@ -105,8 +90,7 @@ const safeRadius = Number.isFinite(parsedRadius)
       },
     });
   } catch (error: unknown) {
-    const message =
-      error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : 'Unknown error';
 
     const errorSvg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="400" height="150">
