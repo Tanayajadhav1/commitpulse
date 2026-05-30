@@ -7,8 +7,13 @@ import { LANGUAGE_COLORS } from '@/lib/svg/languageColors';
 import { CONTRIBUTION_MILESTONES, STREAK_MILESTONES } from './svg/constants';
 
 interface GitHubRepo {
+  name: string;
   stargazers_count: number;
   language: string | null;
+  fork?: boolean;
+  forks_count?: number;
+  updated_at?: string;
+  owner?: { login: string };
 }
 
 const MAX_RETRIES = 3;
@@ -718,12 +723,73 @@ export function buildCommitClock(allDays: ContributionDay[]) {
   return dayNames.map((name, i) => ({ day: name, commits: dayTotals[i] }));
 }
 
+export async function fetchUserOrganizations(
+  username: string,
+  options: FetchOptions = {}
+): Promise<{ login: string; avatar_url: string; description: string | null }[]> {
+  const encodedUsername = encodeURIComponent(username);
+  const res = await fetchWithRetry(`${GITHUB_REST_URL}/users/${encodedUsername}/orgs`, {
+    headers: getHeaders(),
+    cache: 'no-store',
+    signal: options.signal,
+  });
+
+  if (!res.ok) {
+    if (res.status === 404) return [];
+    throwIfRateLimited(res);
+    return [];
+  }
+
+  return await res.json();
+}
+
+export async function fetchContributedRepos(
+  username: string,
+  options: FetchOptions = {}
+): Promise<Record<string, unknown>[]> {
+  const query = `
+    query($login: String!) {
+      user(login: $login) {
+        repositoriesContributedTo(first: 100, contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY], orderBy: {field: UPDATED_AT, direction: DESC}) {
+          nodes {
+            name
+            nameWithOwner
+            owner { login }
+            stargazerCount
+            forkCount
+            primaryLanguage { name }
+            updatedAt
+          }
+        }
+      }
+    }
+  `;
+
+  const res = await fetchWithRetry(GITHUB_GRAPHQL_URL, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      query,
+      variables: { login: username },
+    }),
+    cache: 'no-store',
+    signal: options.signal,
+  });
+
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data?.data?.user?.repositoriesContributedTo?.nodes || [];
+}
+
 export async function getFullDashboardData(username: string, options: FetchOptions = {}) {
-  const [profileResult, reposResult, calendarResult] = await Promise.allSettled([
-    fetchUserProfile(username, options),
-    fetchUserRepos(username, options),
-    fetchGitHubContributions(username, options),
-  ]);
+  const [profileResult, reposResult, calendarResult, orgsResult, contributedReposResult] =
+    await Promise.allSettled([
+      fetchUserProfile(username, options),
+      fetchUserRepos(username, options),
+      fetchGitHubContributions(username, options),
+      fetchUserOrganizations(username, options),
+      fetchContributedRepos(username, options),
+    ]);
 
   if (profileResult.status === 'rejected') {
     throw new Error(`[GitHub API] Failed to fetch profile for user "${username}"`, {
@@ -737,6 +803,9 @@ export async function getFullDashboardData(username: string, options: FetchOptio
     calendarResult.status === 'fulfilled'
       ? calendarResult.value
       : ({ totalContributions: 0, weeks: [] } as ContributionCalendar);
+  const orgsData = orgsResult.status === 'fulfilled' ? orgsResult.value : [];
+  const contributedReposData =
+    contributedReposResult.status === 'fulfilled' ? contributedReposResult.value : [];
 
   const streakStats = calculateStreak(calendarData);
   const totalStars = reposData.reduce((acc, repo) => acc + repo.stargazers_count, 0);
@@ -820,6 +889,64 @@ export async function getFullDashboardData(username: string, options: FetchOptio
 
   const insights = buildInsights(streakStats, languages);
 
+  // Building Graph Data
+  const nodes: Record<string, unknown>[] = [];
+  const links: Record<string, unknown>[] = [];
+
+  // Central User Node
+  nodes.push({
+    id: profileData.login,
+    name: displayName(profileData),
+    type: 'User',
+    val: 30,
+    color: '#E2E8F0', // slate-200
+  });
+
+  // Personal Repositories & Forks
+  reposData.forEach((repo) => {
+    const isFork = repo.fork;
+    nodes.push({
+      id: repo.name,
+      name: repo.name,
+      type: isFork ? 'Fork' : 'Repo',
+      val: Math.max(5, Math.min(20, (repo.stargazers_count || 0) + 5)),
+      color: isFork ? '#F97316' : '#3B82F6', // Orange : Blue
+      stats: {
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        language: repo.language,
+        updatedAt: repo.updated_at,
+      },
+    });
+    links.push({
+      source: profileData.login,
+      target: repo.name,
+    });
+  });
+
+  // Open Source Contributions
+  contributedReposData.forEach((repo) => {
+    nodes.push({
+      id: repo.nameWithOwner,
+      name: repo.name,
+      type: 'Contribution',
+      val: Math.max(5, Math.min(20, (repo.stargazerCount || 0) / 10 + 5)),
+      color: '#22C55E', // Green
+      stats: {
+        stars: repo.stargazerCount,
+        forks: repo.forkCount,
+        language: repo.primaryLanguage?.name,
+        updatedAt: repo.updatedAt,
+      },
+    });
+    links.push({
+      source: profileData.login,
+      target: repo.nameWithOwner,
+    });
+  });
+
+  const graphData = { nodes, links };
+
   return {
     profile,
     stats: {
@@ -832,6 +959,7 @@ export async function getFullDashboardData(username: string, options: FetchOptio
     insights,
     achievements,
     commitClock,
+    graphData,
   };
 }
 

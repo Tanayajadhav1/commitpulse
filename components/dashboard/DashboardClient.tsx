@@ -16,6 +16,7 @@ import CommitClock from './CommitClock';
 import Heatmap from './Heatmap';
 import AIInsights from './AIInsights';
 import StatsCard from './StatsCard';
+import RepositoryGraph from './RepositoryGraph';
 import ComparisonStatsCard from './ComparisonStatsCard';
 import RadarChart from './RadarChart';
 import GrowthTrendChart from './GrowthTrendChart';
@@ -63,6 +64,10 @@ interface DashboardData {
     day: string;
     commits: number;
   }>;
+  graphData: {
+    nodes: Record<string, unknown>[];
+    links: Record<string, unknown>[];
+  };
 }
 
 interface DashboardClientProps {
@@ -505,7 +510,7 @@ export default function DashboardClient({ initialData, username }: DashboardClie
         /* Standard Single Profile View */
         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_320px] gap-6 lg:gap-8">
           {/* Left Sidebar */}
-          <aside className="flex flex-col gap-6">
+          <aside className="flex flex-col gap-6 lg:row-span-2">
             <ProfileCard
               user={initialData.profile}
               exportData={{
@@ -562,6 +567,11 @@ export default function DashboardClient({ initialData, username }: DashboardClie
 
             <AIInsights insights={initialData.insights} />
           </aside>
+
+          {/* Full Width Bottom Section */}
+          <div className="col-span-1 lg:col-span-2 lg:col-start-2">
+            <RepositoryGraph data={initialData.graphData} />
+          </div>
         </div>
       ) : (
         /* Compare Mode Split-Dashboard View */
