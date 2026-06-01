@@ -1283,7 +1283,7 @@ export async function runCappedConcurrency<T, R>(
       const index = currentIndex++;
       try {
         results[index] = await fn(items[index]);
-      } catch (err) {
+      } catch {
         results[index] = null as unknown as R;
       }
     }
