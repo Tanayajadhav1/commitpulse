@@ -49,6 +49,8 @@ export function ExportPanel({
 
   // Track async server download states
   const [isDownloading, setIsDownloading] = useState(false);
+  const [filePathCopied, setFilePathCopied] = useState(false);
+  const [markdownCopied, setMarkdownCopied] = useState(false);
 
   const handleDownloadBadge = async () => {
     if (!hasUsername || !snippet) return;
