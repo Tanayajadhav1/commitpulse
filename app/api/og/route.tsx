@@ -14,20 +14,22 @@ export async function GET(req: NextRequest) {
   try {
     const baseUrl = req.nextUrl.origin;
 
-    const res = await fetch(`${baseUrl}/api/streak?user=${user}&refresh=true`, {
+    const res = await fetch(`${baseUrl}/api/github?username=${user}&refresh=true`, {
       cache: 'no-store',
     });
 
     if (res.ok) {
       const data = (await res.json()) as {
-        totalContributions?: number;
-        longestStreak?: number;
-        currentStreak?: number;
+        stats?: {
+          totalContributions?: number;
+          peakStreak?: number;
+          currentStreak?: number;
+        };
       };
 
-      totalCommits = data.totalContributions ?? 0;
-      longestStreak = data.longestStreak ?? 0;
-      currentStreak = data.currentStreak ?? 0;
+      totalCommits = data.stats?.totalContributions ?? 0;
+      longestStreak = data.stats?.peakStreak ?? 0;
+      currentStreak = data.stats?.currentStreak ?? 0;
     }
   } catch {
     // fallback
