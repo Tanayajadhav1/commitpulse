@@ -51,11 +51,11 @@ describe('Integration Test: API Streak Dimensions Parameter Group', () => {
 
     const svgData = await res.text();
 
-    // BUG FOUND: The API correctly validates custom width/height parameters,
-    // but the current SVG template hardcodes the output to 600x420.
-    // Asserting the current fallback behavior so the pipeline passes.
-    expect(svgData).toContain('viewBox="0 0 600 420"');
-    expect(svgData).toContain('<rect width="600" height="420"');
+    // FIX VERIFIED: The API now correctly applies custom width/height parameters
+    // to the generated SVG output. The viewBox and background rect must use
+    // the requested dimensions instead of the hardcoded 600x420 defaults.
+    expect(svgData).toContain('viewBox="0 0 777 666"');
+    expect(svgData).toContain('<rect width="777" height="666"');
   });
 
   it('Test 3: should reject negative dimensions with a 400 Bad Request', async () => {
